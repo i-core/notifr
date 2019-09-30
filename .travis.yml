@@ -1,0 +1,81 @@
+language: go
+
+go:
+  - 1.12.x
+
+services:
+  - docker
+
+env:
+  global:
+    - CGO_ENABLED=0
+    - GO111MODULE=on
+    - GOPROXY=https://proxy.golang.org
+
+cache:
+  directories:
+    - "$GOPATH/pkg/mod"
+    - "$GOPATH/bin"
+
+install: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.16.0
+
+script:
+  - go test -v -coverprofile=coverage.txt ./...
+  - golangci-lint -v run
+  - |
+    set -e
+    for dist in linux/386 linux/amd64 windows/amd64 darwin/amd64
+    do
+      os=`echo $dist | cut -d'/' -f1`
+      arch=`echo $dist | cut -d'/' -f2`
+      env GOOS=$os GOARCH=$arch go build -o bin/notifr_${os}_${arch} -ldflags "-w -s -X main.version=$TRAVIS_TAG" ./cmd/notifr
+      if [[ "$os" = "windows" ]]; then
+        zip -r bin/notifr_${os}_${arch}.zip bin/notifr_${os}_${arch}
+      else
+        tar cvzf bin/notifr_${os}_${arch}.tar.gz bin/notifr_${os}_${arch}
+      fi
+    done
+    (cd bin && sha256sum *.{tar.gz,zip} > notifr_checksums.txt)
+  - |
+    set -e
+    docker build --build-arg GOPROXY --build-arg VERSION=$TRAVIS_TAG -t "icoreru/notifr:$TRAVIS_COMMIT" .
+    if [ -n "$TRAVIS_TAG" ]; then
+      docker tag "icoreru/notifr:$TRAVIS_COMMIT" "icoreru/notifr:$TRAVIS_TAG"
+      docker tag "icoreru/notifr:$TRAVIS_COMMIT" "icoreru/notifr:latest"
+    fi
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
+before_deploy:
+  - |
+    if [ -n "$TRAVIS_TAG" ]; then
+      docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+    fi
+deploy:
+  - provider: releases
+    api_key:
+      secure: LSe7VDs69xegnPG7bSjWW34w5s2Iovdhg6CxcBzPDuhQOQHFBSuEAH0TNrGN+daIE8+9BK70zI+R2DqZoh0pEHnsymUajHKitHZVXNLpkEL9GXM6mg/+7zVxnVtBwLoNl26bHJOHe0iKx3WAFSwT7XS+jljIWlHnK279jRvESbnviEo558pV2mIgFYMcMe/4FSwp+rAL1h04E/tHG9M8bbJF3rphUW64ZIfuzMW4Da3789QAlra2qVAxzJlkzWWl35Q8ngCCa2bPZGQN3mVS7kaeUcbqVIrgH665Z+ci6QRVJa0AF4v1KYTmUI706dak1fsqXRGmXdE1MlQ9vp8J5qCq8J9/7/jzEvoqZEMWi4ONX7i6tCqpCUuGPg/M/FM2IMIbZZZWEuyIZbc7Qr0nUJRUZoUTkJutAw2JnAVrJUCoCeRjUsdYLdf9JwX0dwbHJ0+2PVOT9m0z+7EJOHUNcjxh2vQSGb8XmG2sGPyNYEFCyYykorCfvzcjnh2XxlxTwQOb7NmFzJq7Q+BVnwKXbaH5cvsWqJlM6T1EEIbTMCcb6flWNVYJr6eQmExvyLG9y0Pbs8OzpYUBFbhiVhaHcQI+y6NXKR7vMCbp2ugNEtp0bGFuEvE62UCNr8XHS7FilUAZznisXZK/W9T23LVZsPA7ZQr6DVKTGFd+dHatji8=
+    file:
+      - bin/notifr_linux_386.tar.gz
+      - bin/notifr_linux_amd64.tar.gz
+      - bin/notifr_windows_amd64.zip
+      - bin/notifr_darwin_amd64.tar.gz
+      - bin/notifr_checksums.txt
+    skip_cleanup: true
+    on:
+      tags: true
+      condition: $TRAVIS_OS_NAME = linux
+
+  - provider: script
+    skip_cleanup: true
+    script: docker push "icoreru/notifr:$TRAVIS_TAG"
+    on:
+      tags: true
+      condition: $TRAVIS_OS_NAME = linux
+
+  - provider: script
+    skip_cleanup: true
+    script: docker push "icoreru/notifr:latest"
+    on:
+      tags: true
+      condition: $TRAVIS_OS_NAME = linux

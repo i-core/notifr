@@ -1,5 +1,7 @@
 # notifr
 
+[![GoDoc][doc-img]][doc] [![Build Status][build-img]][build] [![codecov][codecov-img]][codecov] [![Go Report Card][goreport-img]][goreport]
+
 notifr is a simple HTTP server that resends incoming messages to configured delivery services.
 
 The application allows you to aggregate messages from different services and sends them to recipients.
@@ -135,6 +137,18 @@ Get started with our [Contributing Guide][contrib].
 ## License
 
 The code in this project is licensed under [MIT license][license].
+
+[doc-img]: https://godoc.org/github.com/i-core/notifr?status.svg
+[doc]: https://godoc.org/github.com/i-core/notifr
+
+[build-img]: https://travis-ci.com/i-core/notifr.svg?branch=master
+[build]: https://travis-ci.com/i-core/notifr
+
+[codecov-img]: https://codecov.io/gh/i-core/notifr/branch/master/graph/badge.svg
+[codecov]: https://codecov.io/gh/i-core/notifr
+
+[goreport-img]: https://goreportcard.com/badge/github.com/i-core/notifr
+[goreport]: https://goreportcard.com/report/github.com/i-core/notifr
 
 [contrib]: https://github.com/i-core/.github/blob/master/CONTRIBUTING.md
 [license]: LICENSE
